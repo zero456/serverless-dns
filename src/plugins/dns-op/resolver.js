@@ -265,7 +265,14 @@ export default class DNSResolver {
 
     const ans = await res.arrayBuffer();
 
-    const r = this.makeRdnsResponse(rxid, ans, blf, stamps);
+    let r;
+    try {
+      r = this.makeRdnsResponse(rxid, ans, blf, stamps);
+    } catch (e) {
+      this.log.w(rxid, "upstream returned malformed dns response:", e.message);
+      const pkt = dnsutil.servfail(decodedpacket.id, decodedpacket.questions);
+      r = pres.dnsResponse(dnsutil.decode(pkt), pkt, stamps);
+    }
 
     // blockAnswer is a no-op if the ans is already quad0
     // check outgoing cached dns-packet against blocklists
@@ -292,7 +299,7 @@ export default class DNSResolver {
   makeRdnsResponse(rxid, raw, blf, stamps = null) {
     if (!raw) throw new Error(rxid + " mk-res no upstream result");
 
-    const dnsPacket = dnsutil.decode(raw);
+    const dnsPacket = dnsutil.decode(raw); // may throw if malformed
     // stamps are empty for domains that are not in any blocklist
     // but there's no way to know if that was indeed the case as
     // stamps are sent here by cache-resolver, which may or may not
@@ -335,7 +342,7 @@ export default class DNSResolver {
  * @param {String} rxid
  * @param {String} ts
  * @param {Request} request
- * @param {Array} resolverUrls
+ * @param {String[]} resolverUrls
  * @param {ArrayBuffer} query
  * @param {any} packet
  * @returns {Promise<Response|Error>}
@@ -423,7 +430,7 @@ DNSResolver.prototype.resolveDnsUpstream = async function (
     // upstream to resolvers
     for (const rurl of resolverUrls) {
       if (util.emptyString(rurl)) {
-        this.log.w(rxid, "missing resolver url", rurl);
+        this.log.w(rxid, "missing resolver url", rurl, "among", resolverUrls);
         continue;
       }
 

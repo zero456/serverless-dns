@@ -97,7 +97,7 @@ function isValidFullTimestamp(tstamp) {
 
 /**
  * from: github.com/celzero/downloads/blob/main/src/timestamp.js
- * @type {string} tstamp is of form epochMs ("1740866164283") or yyyy/epochMs ("2025/1740866164283")
+ * @param {string} tstamp is of form epochMs ("1740866164283") or yyyy/epochMs ("2025/1740866164283")
  * @returns {int} blocklist create time (unix epoch) in millis (-1 on errors)
  */
 export function bareTimestampFrom(tstamp) {
@@ -238,6 +238,9 @@ export function timedSafeAsyncOp(promisedOp, ms, defaultOp) {
  */
 export function timeout(ms, fn) {
   if (typeof fn !== "function") return -1;
+  // stackoverflow.com/a/62003170
+  // max allowed timeout is ~24 days (int as ms)
+  ms = ms > 2147483647 ? 2147483640 : ms;
   const timer = setTimeout(fn, ms);
   if (typeof timer.unref === "function") timer.unref();
   return timer;
